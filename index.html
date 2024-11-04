@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Interactive Chessboard Tiling Puzzle</title>
+    <style>
+        body {
+            background-color: #333333;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        #controls {
+            margin: 20px auto;
+            text-align: center;
+        }
+        button {
+            margin-right: 10px;
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button.active {
+            background-color: lightblue;
+        }
+        .chessboard-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .chessboard {
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            grid-template-rows: repeat(8, 60px);
+            margin: 0 auto 20px auto; /* Center the chessboard and add bottom margin */
+            position: relative;
+        }
+        .cell {
+            width: 60px;
+            height: 60px;
+            box-sizing: border-box;
+        }
+        .white {
+            background-color: white;
+        }
+        .lightpurple {
+            background-color: #D8BFD8; /* Thistle color */
+        }
+        .cell:hover {
+            outline: 2px solid yellow;
+            cursor: pointer;
+        }
+        .removed {
+            background-color: white; /* Mark removed cells as white */
+            opacity: 1; /* Full opacity */
+        }
+        .tiled {
+            /* Indicate that the cell is part of a tile */}
+        .tile {
+            position: absolute;
+            background-color: green;
+            opacity: 1;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+<div id="controls">
+    <button id="tilingModeBtn" class="active">Tiling Mode</button>
+    <button id="removeModeBtn">Remove Mode</button>
+    <button id="resetBtn">Reset</button>
+</div>
+<div class="chessboard-container">
+    <div class="chessboard" id="chessboard"></div>
+</div>
+
+<script>
+    const chessboard = document.getElementById('chessboard');
+
+    // Generate the chessboard cells
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            const cell = document.createElement('div');
+            cell.classList.add('cell');
+            cell.dataset.row = row;
+            cell.dataset.col = col;
+            // Alternate colors
+            if ((row + col) % 2 === 0) {
+                cell.classList.add('white');
+            } else {
+                cell.classList.add('lightpurple');
+            }
+            chessboard.appendChild(cell);
+        }
+    }
+
+    let mode = 'tiling'; // default mode
+    let selectedCells = []; // store selected cells for tiling
+    let tiles = []; // store tiles and the cells they cover
+
+    // Mode buttons
+    const tilingModeBtn = document.getElementById('tilingModeBtn');
+    const removeModeBtn = document.getElementById('removeModeBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    tilingModeBtn.addEventListener('click', () => {
+        mode = 'tiling';
+        tilingModeBtn.classList.add('active');
+        removeModeBtn.classList.remove('active');
+    });
+
+    removeModeBtn.addEventListener('click', () => {
+        mode = 'remove';
+        removeModeBtn.classList.add('active');
+        tilingModeBtn.classList.remove('active');
+        // Remove any selected highlights when switching modes
+        if (selectedCells.length === 1) {
+            selectedCells[0].classList.remove('selected');
+            selectedCells = [];
+        }
+    });
+
+    resetBtn.addEventListener('click', resetBoard);
+
+    // Add event listeners to cells
+    const cells = document.querySelectorAll('.cell');
+
+    cells.forEach(cell => {
+        cell.addEventListener('click', () => {
+            if (mode === 'tiling') {
+                handleTiling(cell);
+            } else if (mode === 'remove') {
+                handleRemove(cell);
+            }
+        });
+    });
+
+    function handleTiling(cell) {
+        // Check if cell is already removed or tiled
+        if (cell.classList.contains('removed') || cell.classList.contains('tiled')) {
+            return;
+        }
+
+        // If this is the first cell selected, highlight it temporarily
+        if (selectedCells.length === 0) {
+            selectedCells.push(cell);
+            cell.style.backgroundColor = 'green'; // Temporarily color the first cell green
+            cell.classList.add('selected'); // Add selected class to track this cell
+        } else if (selectedCells.length === 1) {
+            // If this is the second cell, check if it's adjacent to the first
+            const cell1 = selectedCells[0];
+            const row1 = parseInt(cell1.dataset.row);
+            const col1 = parseInt(cell1.dataset.col);
+            const row2 = parseInt(cell.dataset.row);
+            const col2 = parseInt(cell.dataset.col);
+
+            const areAdjacent = (row1 === row2 && Math.abs(col1 - col2) === 1) ||
+                (col1 === col2 && Math.abs(row1 - row2) === 1);
+
+            if (areAdjacent && !cell.classList.contains('removed') && !cell.classList.contains('tiled')) {
+                // If adjacent, place a permanent tile over both cells
+                placeTile(cell1, cell);
+                cell1.classList.add('tiled');
+                cell.classList.add('tiled');
+            } else {
+                // If not adjacent, revert the first cell back to its original color
+                resetCellColor(cell1);
+            }
+
+            // Clear selection
+            selectedCells = [];
+        }
+    }
+
+    function resetCellColor(cell) {
+        // Revert the cell color back to its original based on position
+        cell.style.backgroundColor = (parseInt(cell.dataset.row) + parseInt(cell.dataset.col)) % 2 === 0
+            ? 'white'
+            : '#D8BFD8'; // Light purple
+        cell.classList.remove('selected');
+    }
+
+    function placeTile(cell1, cell2) {
+        const tile = document.createElement('div');
+        tile.classList.add('tile');
+
+        // Set border to distinguish the tile
+        tile.style.border = '2px solid black'; // Add a black border with 2px width
+
+        // Calculate position and size
+        const row1 = parseInt(cell1.dataset.row);
+        const col1 = parseInt(cell1.dataset.col);
+        const row2 = parseInt(cell2.dataset.row);
+        const col2 = parseInt(cell2.dataset.col);
+
+        const left = Math.min(col1, col2) * 60;
+        const top = Math.min(row1, row2) * 60;
+
+        if (row1 === row2) {
+            // Horizontal tile
+            tile.style.width = '116px'; // Adjust for border
+            tile.style.height = '56px'; // Adjust for border
+        } else {
+            // Vertical tile
+            tile.style.width = '56px'; // Adjust for border
+            tile.style.height = '116px'; // Adjust for border
+        }
+
+        tile.style.left = left + 'px';
+        tile.style.top = top + 'px';
+
+        chessboard.appendChild(tile);
+
+        // Store the tile and the cells it covers
+        tiles.push({
+            tile: tile,
+            cells: [cell1, cell2]
+        });
+    }
+
+    function handleRemove(cell) {
+        // If cell is already removed, do nothing
+        if (cell.classList.contains('removed')) {
+            return;
+        }
+
+        // Remove any tiles that cover this cell
+        removeTileCoveringCell(cell);
+
+        cell.classList.add('removed');
+        // Remove other classes to reset the cell's appearance
+        cell.classList.remove('white', 'lightpurple', 'tiled', 'selected');
+        cell.style.backgroundColor = '#333333';
+    }
+
+    function removeTileCoveringCell(cell) {
+        tiles = tiles.filter(tileObj => {
+            if (tileObj.cells.includes(cell)) {
+                // Remove the tile from the chessboard
+                chessboard.removeChild(tileObj.tile);
+                // Mark the other cell as untiled
+                tileObj.cells.forEach(c => {
+                    c.classList.remove('tiled');
+                });
+                return false; // Remove this tileObj from the array
+            }
+            return true; // Keep this tileObj
+        });
+    }
+
+    function resetBoard() {
+        // Remove all tiles
+        tiles.forEach(tileObj => {
+            chessboard.removeChild(tileObj.tile);
+        });
+        tiles = [];
+
+        // Reset cells
+        cells.forEach(cell => {
+            cell.classList.remove('removed', 'tiled', 'selected');
+            // Restore original colors
+            const row = parseInt(cell.dataset.row);
+            const col = parseInt(cell.dataset.col);
+            if ((row + col) % 2 === 0) {
+                cell.classList.add('white');
+                cell.style.backgroundColor = 'white';
+            } else {
+                cell.classList.add('lightpurple');
+                cell.style.backgroundColor = '#D8BFD8';
+            }
+        });
+
+        selectedCells = [];
+        mode = 'tiling'; // Reset to tiling mode
+        tilingModeBtn.classList.add('active');
+        removeModeBtn.classList.remove('active');
+    }
+</script>
+</body>
+</html>
